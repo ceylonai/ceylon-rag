@@ -121,44 +121,31 @@ class TextLoader(DocumentLoader):
         return documents
 
     def _chunk_text(self, text: str, source: str) -> List[Document]:
-        """Split text into chunks with specified size and overlap, ensuring no chunk exceeds max size
-
-        Args:
-            text (str): Input text to be chunked
-            source (str): Source identifier for the text
-
-        Returns:
-            List[Document]: List of Document objects containing text chunks and metadata
-        """
+        """Split text into chunks with specified size and overlap, ensuring chunks don't exceed max size"""
         chunks = []
         start = 0
         text_length = len(text)
 
         while start < text_length:
-            # Calculate initial chunk end position
-            end = min(start + self.config.chunk_size, text_length)
+            # Calculate chunk end position
+            end = start + self.config.chunk_size
 
-            # If we're not at text end, try to find a sentence boundary
+            # Adjust chunk boundary to nearest sentence end if possible
             if end < text_length:
-                # Search range is from end backwards, but never beyond start
-                # or more than chunk_size distance
-                search_end = end
-                search_start = max(start, end - self.config.chunk_size)
-
                 # Look for sentence endings (.!?) followed by space or newline
-                sentence_end = None
-                for i in range(search_end, search_start - 1, -1):
-                    if text[i] in '.!?' and (i + 1 == text_length or text[i + 1].isspace()):
-                        sentence_end = i + 1
+                # Only search within the allowed chunk size
+                search_end = min(end + 100, text_length)
+                search_start = max(start, end - 100)
+
+                # First try to find sentence boundary within chunk size
+                for i in range(end, search_start - 1, -1):
+                    if i < text_length and text[i] in '.!?' and (i + 1 == text_length or text[i + 1].isspace()):
+                        end = i + 1
                         break
 
-                # Only use sentence boundary if found within search range
-                if sentence_end is not None:
-                    end = sentence_end
-
-            # Ensure chunk doesn't exceed max size even if no sentence boundary found
-            if end - start > self.config.chunk_size:
-                end = start + self.config.chunk_size
+                # If no sentence boundary found within chunk size, force break at chunk size
+                if end > start + self.config.chunk_size:
+                    end = start + self.config.chunk_size
 
             # Create document from chunk
             chunk_text = text[start:end].strip()

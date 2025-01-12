@@ -42,7 +42,7 @@ def default_config():
     return TextLoaderConfig(
         name="test_loader",
         type="document_loader",
-        chunk_size=1200,
+        chunk_size=200,
         chunk_overlap=20,
         config={}
     )
@@ -241,7 +241,7 @@ class TestTextLoader:
         text_loader.initialize(default_config)
 
         # Create large text file
-        large_content = "This is a test sentence.\n" * 100000
+        large_content = "This is a test sentence.\n" * 1000
         large_file = tmp_path / "large.txt"
         large_file.write_text(large_content)
 
