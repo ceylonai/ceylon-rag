@@ -67,39 +67,37 @@ class PDFLoader(DocumentLoader):
 
         documents: List[Document] = []
 
-        try:
-            with open(source_path, 'rb') as file:
-                # Create PDF reader object
-                reader = PdfReader(file)
+        with open(source_path, 'rb') as file:
+            # Create PDF reader object
+            reader = PdfReader(file)
 
-                # Extract text from each page
-                raw_text = ""
-                for page in reader.pages:
-                    text = page.extract_text()
-                    if text:
-                        raw_text += text + "\n\n"
+            # Extract text from each page
+            raw_text = ""
+            for page in reader.pages:
+                text = page.extract_text()
+                if text:
+                    raw_text += text + "\n\n"
 
-                if not raw_text.strip():
-                    return []
+            if not raw_text.strip():
+                return []
 
-                # Create documents based on chunking configuration
-                if self.config.chunk_size:
-                    documents.extend(self._chunk_text(raw_text))
-                else:
-                    # Create a single document if no chunking is specified
-                    documents.append(
-                        Document(
-                            content=raw_text.strip(),
-                            metadata={
-                                "source": str(source_path),
-                                "type": "pdf",
-                                "pages": len(reader.pages)
-                            }
-                        )
+            # Create documents based on chunking configuration
+            if self.config.chunk_size:
+                documents.extend(self._chunk_text(raw_text))
+            else:
+                # Create a single document if no chunking is specified
+                documents.append(
+                    Document(
+                        content=raw_text.strip(),
+                        metadata={
+                            "source": str(source_path),
+                            "type": "pdf",
+                            "pages": len(reader.pages)
+                        }
                     )
+                )
 
-        except Exception as e:
-            raise RuntimeError(f"Error processing PDF {source}: {str(e)}")
+
 
         return documents
 

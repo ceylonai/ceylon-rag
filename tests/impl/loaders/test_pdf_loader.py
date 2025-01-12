@@ -4,7 +4,7 @@ from unittest.mock import patch
 
 import pytest
 from pypdf import PdfWriter, PageObject, PdfReader
-from pypdf.errors import PdfReadError
+from pypdf.errors import PdfReadError, PageSizeNotDefinedError
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 
@@ -217,26 +217,38 @@ class TestPDFLoader:
             assert overlap_size > 0, "No overlap found between adjacent chunks"
 
     @pytest.mark.asyncio
-    async def test_retry_mechanism(self, pdf_loader, default_config, tmp_path):
+    async def test_retry_mechanism(self, pdf_loader, default_config, tmp_path, sample_pdf_content):
         """Test retry mechanism for PDF loading"""
         pdf_loader.initialize(default_config)
 
-        # Mock PyPDF2.PdfReader to fail twice then succeed
+        # Create a test PDF file
+        test_pdf = tmp_path / "test.pdf"
+        test_pdf.write_bytes(sample_pdf_content)
+
+        # Mock PdfReader to fail twice then succeed
         fail_count = 0
         original_reader = PdfReader
 
-        def mock_reader(*args, **kwargs):
-            nonlocal fail_count
-            if fail_count < 2:
-                fail_count += 1
-                raise PdfReadError("Simulated PDF read error")
-            return original_reader(*args, **kwargs)
+        class MockPdfReader:
+            def __init__(self, *args, **kwargs):
+                nonlocal fail_count
+                if fail_count < 2:
+                    fail_count += 1
+                    raise PageSizeNotDefinedError("Simulated PDF read error")
+                self.real_reader = original_reader(*args, **kwargs)
 
-        with patch('pypdf.PdfReader', side_effect=mock_reader):
-            # Should succeed after retries
-            documents = await pdf_loader.load(tmp_path / "test.pdf")
+            @property
+            def pages(self):
+                return self.real_reader.pages
+
+        # Use the mock PdfReader with the correct import path
+        with patch('src.impl.loaders.pdf_loader.PdfReader', MockPdfReader):
+            documents = await pdf_loader.load(test_pdf)
+
+            # Verify documents were loaded successfully
+            assert len(documents) > 0
+            # Verify the mock failed twice before succeeding
             assert fail_count == 2
-
     @pytest.mark.asyncio
     async def test_empty_pdf(self, pdf_loader, default_config, tmp_path):
         """Test handling of empty PDF"""
