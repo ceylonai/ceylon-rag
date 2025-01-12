@@ -20,6 +20,14 @@ numpy = "^2.2.1"
 aiohttp = "^3.11.11"
 aioresponses = "^0.7.7"
 asyncio = "^3.4.3"
+lancedb = {version = "^0.17.1", allow-prereleases = true}
+tantivy = "^0.22.0"
+ollama = "^0.4.5"
+
+[[tool.poetry.source]]
+name = "fury"
+url = "https://pypi.fury.io/lancedb/"
+priority = "supplemental"
 
 
 [build-system]

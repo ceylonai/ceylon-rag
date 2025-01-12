@@ -1,169 +1,54 @@
-import asyncio
+from typing import List
 
-import aiohttp
-import numpy as np
-from typing import List, Dict, Any, Optional
+import httpx
+from lancedb.embeddings import EmbeddingFunctionRegistry
 
-from src.interfaces.embedder import Embedder
+from interfaces.embedder import Embedder
 
 
-class OllamaEmbedder(Embedder):
-    """
-    Async embedder implementation using Ollama's API for generating embeddings.
+class AsyncOllamaEmbedder(Embedder):
+    def __init__(self, model_name: str = "mxbai-embed-large", base_url: str = "http://localhost:11434"):
+        self.model_name = model_name
+        self.base_url = base_url
+        self.client = httpx.AsyncClient()
 
-    This implementation uses the Ollama API to generate embeddings for documents
-    and queries. It supports batch processing and configurable models.
-    """
-
-    DEFAULT_EMBEDDING_MODEL = "nomic-embed-text"
-    DEFAULT_BASE_URL = "http://localhost:11434"
-
-    def __init__(self, config: Optional[Dict[str, Any]] = None):
-        """
-        Initialize the Ollama embedder with configuration.
-
-        Args:
-            config: Dictionary containing configuration parameters:
-                - base_url: Ollama API base URL (default: http://localhost:11434)
-                - model: Model name to use for embeddings (default: nomic-embed-text)
-                - timeout: Request timeout in seconds (default: 30)
-                - batch_size: Maximum batch size for document embedding (default: 32)
-        """
-        super().__init__(config)
-        self._base_url = self.config.get('base_url', self.DEFAULT_BASE_URL)
-        self._model = self.config.get('model', self.DEFAULT_EMBEDDING_MODEL)
-        self._timeout = aiohttp.ClientTimeout(total=self.config.get('timeout', 30))
-        self._batch_size = self.config.get('batch_size', 32)
-        self._session: Optional[aiohttp.ClientSession] = None
-        self._embedding_dim: Optional[int] = None
-
-    async def _ensure_session(self) -> None:
-        """Ensure aiohttp session is created."""
-        if self._session is None:
-            self._session = aiohttp.ClientSession(timeout=self._timeout)
-
-    async def _get_embedding(self, text: str) -> np.ndarray:
-        """
-        Get embedding for a single text using Ollama API.
-
-        Args:
-            text: Text to embed
-
-        Returns:
-            numpy.ndarray: Embedding vector
-        """
-        await self._ensure_session()
-
-        payload = {
-            "model": self._model,
-            "prompt": text,
-            "options": {
-                "embedding": True
-            }
-        }
-
-        async with self._session.post(
-                f"{self._base_url}/api/generate",
-                json=payload
-        ) as response:
-            if response.status != 200:
-                error_text = await response.text()
-                raise RuntimeError(
-                    f"Ollama API error (status {response.status}): {error_text}"
-                )
-
-            result = await response.json()
-            if "embedding" not in result:
-                raise RuntimeError("No embedding in Ollama API response")
-
-            embedding = np.array(result["embedding"])
-
-            # Set embedding dimension if not yet set
-            if self._embedding_dim is None:
-                self._embedding_dim = embedding.shape[0]
-
-            return embedding
-
-    async def embed_documents(self, documents: List[str]) -> np.ndarray:
-        """
-        Convert a list of documents into their vector representations.
-
-        Args:
-            documents: List of document texts to embed
-
-        Returns:
-            numpy.ndarray: Array of document embeddings
-        """
-        if not documents:
-            raise ValueError("Documents list is empty")
-
-        embeddings = []
-
-        # Process in batches
-        for i in range(0, len(documents), self._batch_size):
-            batch = documents[i:i + self._batch_size]
-            batch_embeddings = await asyncio.gather(
-                *[self._get_embedding(doc) for doc in batch]
-            )
-            embeddings.extend(batch_embeddings)
-
-        return np.array(embeddings)
-
-    async def embed_query(self, query: str) -> np.ndarray:
-        """
-        Convert a query text into its vector representation.
-
-        Args:
-            query: Query text to embed
-
-        Returns:
-            numpy.ndarray: Query embedding vector
-        """
-        if not query.strip():
-            raise ValueError("Query is empty")
-
-        return await self._get_embedding(query)
+        # Initialize LanceDB registry and embedder
+        registry = EmbeddingFunctionRegistry.get_instance()
+        self._lance_embedder = registry.get("ollama").create(name=model_name)
 
     @property
-    def embedding_dimension(self) -> int:
-        """
-        Get the dimension of the embedding space.
+    def SourceField(self):
+        return self._lance_embedder.SourceField
 
-        Returns:
-            int: Dimension of the embedding vectors
+    @property
+    def VectorField(self):
+        return self._lance_embedder.VectorField
 
-        Raises:
-            RuntimeError: If embedding dimension is not yet determined
-        """
-        if self._embedding_dim is None:
-            raise RuntimeError(
-                "Embedding dimension not yet determined. "
-                "Make at least one embedding request first."
-            )
-        return self._embedding_dim
+    def ndims(self):
+        return self._lance_embedder.ndims()
 
-    async def validate_config(self) -> bool:
-        """
-        Validate the configuration by testing connection to Ollama API.
+    async def _get_embedding(self, text: str) -> List[float]:
+        response = await self.client.post(
+            f"{self.base_url}/api/embeddings",
+            json={
+                "model": self.model_name,
+                "prompt": text
+            }
+        )
+        return response.json()['embedding']
 
-        Returns:
-            bool: True if configuration is valid
+    async def embed_documents(self, documents: List[str]) -> List[List[float]]:
+        embeddings = []
+        for doc in documents:
+            embedding = await self._get_embedding(doc)
+            embeddings.append(embedding)
+        return embeddings
 
-        Raises:
-            ValueError: If configuration is invalid
-        """
-        try:
-            # Test connection with a simple embedding request
-            await self._ensure_session()
-            await self._get_embedding("test")
-            return True
-        except Exception as e:
-            raise ValueError(f"Invalid configuration: {str(e)}")
+    async def embed_query(self, query: str) -> List[float]:
+        return await self._get_embedding(query)
 
-    async def shutdown(self) -> None:
-        """
-        Close the aiohttp session.
-        """
-        if self._session:
-            await self._session.close()
-            self._session = None
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        await self.client.aclose()
