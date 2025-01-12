@@ -30,6 +30,10 @@ class AsyncLanceDBStore(VectorStore):
         if metadata is None:
             metadata = [{"title": "", "url": "", "index": i} for i in range(len(documents))]
 
+        table_name = self.db.table_names()
+        if self.table_name in table_name:
+            self.table = self.db.open_table(self.table_name)
+
         data = []
         for doc, emb, meta in zip(documents, embeddings, metadata):
             data.append({
