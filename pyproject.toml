@@ -4,11 +4,10 @@ version = "0.1.0"
 description = ""
 authors = ["dewma <dewmal@syigen.com>"]
 readme = "README.md"
+packages = [{ include = "*", from = "src" }]
 
 [tool.poetry.dependencies]
 python = "^3.12"
-textual = "^1.0.0"
-textual-dev = "^1.7.0"
 
 
 [build-system]
