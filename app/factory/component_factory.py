@@ -24,6 +24,9 @@ class AsyncComponentFactory:
         if type == "ollama":
             from app.impl.embedders.ollama_embedder import AsyncOllamaEmbedder
             return AsyncOllamaEmbedder(**kwargs)
+        if type == "openai":
+            from app.impl.embedders.openai_embedder import AsyncOpenAIEmbedder
+            return AsyncOpenAIEmbedder(**kwargs)
         raise ValueError(f"Unknown embedder type: {type}")
 
     @staticmethod

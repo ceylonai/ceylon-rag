@@ -298,9 +298,14 @@ async def main():
             "model_name": "gpt-4o",  # Using a code-specific model
             "api_key": os.getenv("OPENAI_API_KEY")
         },
+        # "embedder": {
+        #     "type": "ollama",
+        #     "model_name": "nomic-embed-text"
+        # },
         "embedder": {
-            "type": "ollama",
-            "model_name": "nomic-embed-text"
+            "type": "openai",
+            "model_name": "text-embedding-3-small",  # Using a code-specific model
+            "api_key": os.getenv("OPENAI_API_KEY")
         },
         "vector_store": {
             "type": "lancedb",
@@ -358,7 +363,7 @@ async def main():
 
         # Example analysis
         query_result = await rag.analyze_code(
-            "Describe Component Factory?",
+            "Generate README File content with code structure and examples. add a simple getting started code too",
         )
 
         print("\nAnalysis Results:")
