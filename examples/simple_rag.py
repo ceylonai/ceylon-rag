@@ -1,7 +1,11 @@
 import asyncio
 from typing import Dict, Any, List, Tuple
+from datetime import datetime
+from uuid import uuid4
 import pandas as pd
+
 from app.factory.component_factory import AsyncComponentFactory
+from app.interfaces.schemas import Document, QueryResult
 
 
 class BBCNewsRAG:
@@ -75,7 +79,7 @@ class BBCNewsRAG:
         expanded = await self.llm.generate(prompt=prompt)
         return expanded
 
-    async def rerank_results(self, results: List[Dict], question: str) -> List[Dict]:
+    async def rerank_results(self, results: List[Document], question: str) -> List[Document]:
         """Rerank search results based on relevance to the question"""
         if not results:
             return results
@@ -88,7 +92,7 @@ class BBCNewsRAG:
         Question: {question}
 
         Results to rate:
-        {[result.get('text', '')[:200] + '...' for result in results]}
+        {[doc.content[:200] + '...' for doc in results]}
 
         Ratings (ONLY numbers separated by commas):
         """
@@ -144,11 +148,10 @@ class BBCNewsRAG:
         # Remove duplicates while preserving order
         seen = set()
         unique_results = []
-        for result in all_results:
-            result_id = result.get('metadata', {}).get('index')
-            if result_id not in seen:
-                seen.add(result_id)
-                unique_results.append(result)
+        for doc in all_results:
+            if doc.doc_id not in seen:
+                seen.add(doc.doc_id)
+                unique_results.append(doc)
 
         # Rerank results
         reranked_results = await self.rerank_results(unique_results, question)
@@ -159,7 +162,7 @@ class BBCNewsRAG:
             Question: {question}
             Expanded Question: {expanded_question}
             Keywords: {', '.join(keywords)}
-            Context: {reranked_results[:5]}  # Use top 5 results
+            Context: {[doc.content for doc in reranked_results[:5]]}  # Use top 5 results
             """,
             system_prompt=system_prompt or """
             Provide a comprehensive answer that:
@@ -171,36 +174,45 @@ class BBCNewsRAG:
             """
         )
 
-        # Return both the response and search metadata
-        search_metadata = {
-            'keywords': keywords,
-            'expanded_question': expanded_question,
-            'query_variations': query_variations,
-            'total_results': len(reranked_results),
-            'top_sources': [r.get('metadata', {}).get('url') for r in reranked_results[:3]]
-        }
+        # Create QueryResult
+        query_result = QueryResult(
+            response=response,
+            source_documents=reranked_results[:5],
+            metadata={
+                'keywords': keywords,
+                'expanded_question': expanded_question,
+                'query_variations': query_variations,
+                'total_results': len(reranked_results),
+                'top_sources': [doc.metadata.get('url') for doc in reranked_results[:3]]
+            },
+            created_at=datetime.utcnow()
+        )
 
-        return response, search_metadata
+        return query_result
 
     async def ingest_data(self, df: pd.DataFrame):
         """Ingest the BBC news data from pandas DataFrame into the vector store"""
-        documents = df['text'].tolist()
+        documents = []
+
+        # Reset index if it doesn't exist or to ensure consecutive integers
+        if 'index' not in df.columns:
+            df = df.reset_index()
+
+        for _, row in df.iterrows():
+            doc = Document(
+                content=row['text'],
+                metadata={
+                    'title': row['title'],
+                    'url': row['url'],
+                    'index': int(row.name)  # Use the DataFrame index as the required index field
+                },
+                doc_id=uuid4(),
+                created_at=datetime.utcnow()
+            )
+            documents.append(doc)
+
         embeddings = await self.embedder.embed_documents(documents)
-
-        metadata = df.apply(
-            lambda row: {
-                'title': row['title'],
-                'url': row['url'],
-                'index': row['index']
-            },
-            axis=1
-        ).tolist()
-
-        await self.vector_store.store_embeddings(
-            documents=documents,
-            embeddings=embeddings,
-            metadata=metadata
-        )
+        await self.vector_store.store_embeddings(documents=documents, embeddings=embeddings)
 
     async def close(self):
         """Clean up resources"""
@@ -232,21 +244,20 @@ async def main():
 
     try:
         df = pd.read_csv('data/data.txt')
-
         await rag.ingest_data(df)
 
         question = "Do you have any news regarding Health with sources?"
-        response, metadata = await rag.query(
+        query_result = await rag.query(
             question,
             system_prompt="You are a helpful assistant that provides accurate information about news articles."
         )
 
         print(f"Question: {question}")
-        print(f"Keywords: {', '.join(metadata['keywords'])}")
-        print(f"Expanded Question: {metadata['expanded_question']}")
-        print(f"Query Variations: {metadata['query_variations']}")
-        print(f"Top Sources: {metadata['top_sources']}")
-        print(f"Answer: {response}")
+        print(f"Keywords: {', '.join(query_result.metadata['keywords'])}")
+        print(f"Expanded Question: {query_result.metadata['expanded_question']}")
+        print(f"Query Variations: {query_result.metadata['query_variations']}")
+        print(f"Top Sources: {query_result.metadata['top_sources']}")
+        print(f"Answer: {query_result.response}")
 
     finally:
         await rag.close()

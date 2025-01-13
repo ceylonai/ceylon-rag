@@ -4,6 +4,7 @@ import httpx
 from lancedb.embeddings import EmbeddingFunctionRegistry
 
 from app.interfaces.embedder import Embedder
+from app.interfaces.schemas import Document
 
 
 class AsyncOllamaEmbedder(Embedder):
@@ -37,10 +38,11 @@ class AsyncOllamaEmbedder(Embedder):
         )
         return response.json()['embedding']
 
-    async def embed_documents(self, documents: List[str]) -> List[List[float]]:
+    async def embed_documents(self, documents: List[Document]) -> List[List[float]]:
         embeddings = []
         for doc in documents:
-            embedding = await self._get_embedding(doc)
+            print(doc)
+            embedding = await self._get_embedding(doc.content)
             embeddings.append(embedding)
         return embeddings
 

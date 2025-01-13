@@ -1,8 +1,12 @@
 import asyncio
-from typing import List, Dict, Any
+from datetime import datetime
+from typing import List
+from uuid import UUID
+
 import lancedb
 from lancedb.pydantic import LanceModel, Vector
 
+from app.interfaces.schemas import Document
 from app.interfaces.vector_store import VectorStore
 
 
@@ -10,9 +14,11 @@ def create_lance_schema(embedder):
     class LanceDBSchema(LanceModel):
         text: str = embedder.SourceField()
         vector: Vector(embedder.ndims()) = embedder.VectorField()
-        index: int
-        title: str
-        url: str
+        doc_id: str
+        metadata_title: str  # Flattened metadata fields
+        metadata_url: str
+        metadata_index: int  # Required field, non-null
+        created_at: str
 
     return LanceDBSchema
 
@@ -25,23 +31,24 @@ class AsyncLanceDBStore(VectorStore):
         self._lock = asyncio.Lock()
         self.schema = create_lance_schema(embedder)
 
-    async def store_embeddings(self, documents: List[str], embeddings: List[List[float]],
-                               metadata: List[Dict[str, Any]] = None) -> None:
-        if metadata is None:
-            metadata = [{"title": "", "url": "", "index": i} for i in range(len(documents))]
-
-        table_name = self.db.table_names()
-        if self.table_name in table_name:
+    async def store_embeddings(self, documents: List[Document], embeddings: List[List[float]]) -> None:
+        if self.table_name in self.db.table_names():
             self.table = self.db.open_table(self.table_name)
 
         data = []
-        for doc, emb, meta in zip(documents, embeddings, metadata):
+        for doc, emb in zip(documents, embeddings):
+            # Ensure index exists in metadata
+            if 'index' not in doc.metadata:
+                raise ValueError("Document metadata must contain 'index' field")
+
             data.append({
-                "text": doc,
+                "text": doc.content,
                 "vector": emb,
-                "index": meta.get("index", 0),
-                "title": meta.get("title", ""),
-                "url": meta.get("url", "")
+                "doc_id": str(doc.doc_id),
+                "metadata_title": doc.metadata.get('title', ''),
+                "metadata_url": doc.metadata.get('url', ''),
+                "metadata_index": doc.metadata['index'],  # Required field
+                "created_at": doc.created_at.isoformat()
             })
 
         async with self._lock:
@@ -55,7 +62,7 @@ class AsyncLanceDBStore(VectorStore):
             else:
                 await asyncio.to_thread(self.table.add, data)
 
-    async def search(self, query_embedding: List[float], limit: int = 3) -> List[Dict[str, Any]]:
+    async def search(self, query_embedding: List[float], limit: int = 3) -> List[Document]:
         if self.table is None:
             raise ValueError("No documents have been stored yet")
 
@@ -67,11 +74,15 @@ class AsyncLanceDBStore(VectorStore):
             )
 
         return [
-            {
-                "text": r.text,
-                "title": r.title,
-                "url": r.url,
-                "index": r.index
-            }
+            Document(
+                content=r.text,
+                metadata={
+                    'title': r.metadata_title,
+                    'url': r.metadata_url,
+                    'index': r.metadata_index
+                },
+                doc_id=UUID(r.doc_id),
+                created_at=datetime.fromisoformat(r.created_at)
+            )
             for r in results
         ]
