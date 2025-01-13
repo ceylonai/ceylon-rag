@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "ceylon-rag"
-version = "0.2.0"
+version = "0.2.1"
 description = ""
 authors = ["dewma <dewmal@syigen.com>"]
 readme = "README.md"
@@ -20,7 +20,7 @@ numpy = "^2.2.1"
 aiohttp = "^3.11.11"
 aioresponses = "^0.7.7"
 asyncio = "^3.4.3"
-lancedb = {version = "^0.17.1", allow-prereleases = true}
+lancedb = "0.17.0"
 tantivy = "^0.22.0"
 ollama = "^0.4.5"
 pandas = "^2.2.3"
