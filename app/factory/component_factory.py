@@ -14,6 +14,9 @@ class AsyncComponentFactory:
         if type == "ollama":
             from app.impl.llms.ollama import AsyncOllamaLLM
             return AsyncOllamaLLM(**kwargs)
+        if type == "openai":
+            from app.impl.llms.openai import AsyncOpenAILLM
+            return AsyncOpenAILLM(**kwargs)
         raise ValueError(f"Unknown LLM type: {type}")
 
     @staticmethod

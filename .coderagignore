@@ -1,0 +1,12 @@
+# Ignore all test files
+test_*.py
+*_test.py
+!important_test.py  # But keep this one
+
+# Ignore documentation
+docs/
+*.md
+
+# Ignore specific directories
+experimental/*
+legacy_code/
