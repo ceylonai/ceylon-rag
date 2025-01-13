@@ -3,7 +3,7 @@ from typing import List
 import httpx
 from lancedb.embeddings import EmbeddingFunctionRegistry
 
-from interfaces.embedder import Embedder
+from app.interfaces.embedder import Embedder
 
 
 class AsyncOllamaEmbedder(Embedder):

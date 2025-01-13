@@ -3,7 +3,7 @@ from typing import List, Dict, Any
 import lancedb
 from lancedb.pydantic import LanceModel, Vector
 
-from interfaces.vector_store import VectorStore
+from app.interfaces.vector_store import VectorStore
 
 
 def create_lance_schema(embedder):

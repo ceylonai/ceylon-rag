@@ -1,7 +1,7 @@
 import asyncio
 from typing import Dict, Any, List, Tuple
 import pandas as pd
-from factory.component_factory import AsyncComponentFactory
+from app.factory.component_factory import AsyncComponentFactory
 
 
 class BBCNewsRAG:

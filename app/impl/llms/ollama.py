@@ -1,7 +1,7 @@
 import httpx
 from typing import AsyncGenerator, Optional, Dict, Any
 
-from interfaces.llm import LLM
+from app.interfaces.llm import LLM
 
 
 class AsyncOllamaLLM(LLM):
