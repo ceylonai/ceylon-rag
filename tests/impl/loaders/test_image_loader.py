@@ -4,6 +4,7 @@ from pathlib import Path
 from unittest.mock import patch, MagicMock
 from PIL import Image, ExifTags
 import pytest
+from tenacity import RetryError
 
 from src.impl.loaders.image_loader import ImageLoaderConfig, ImageLoader
 from src.interfaces.schemas import Document
@@ -274,7 +275,7 @@ class TestImageLoader:
         corrupted_file = tmp_path / "corrupted.png"
         corrupted_file.write_text("This is not a valid image file")
 
-        with pytest.raises(ValueError):
+        with pytest.raises(RetryError):
             await image_loader.load(corrupted_file)
 
     @pytest.mark.asyncio
