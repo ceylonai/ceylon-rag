@@ -2,11 +2,11 @@ from typing import List, Dict, Type, Optional
 import asyncio
 from pathlib import Path
 
-from src.interfaces.document_loader import DocumentLoader, LoaderConfig
-from src.interfaces.schemas import Document
-from src.impl.loaders.image_loader import ImageLoader, ImageLoaderConfig
-from src.impl.loaders.pdf_loader import PDFLoader, PDFLoaderConfig
-from src.impl.loaders.text_loader import TextLoader, TextLoaderConfig
+from app.interfaces.document_loader import DocumentLoader, LoaderConfig
+from app.interfaces.schemas import Document
+from app.impl.loaders.image_loader import ImageLoader, ImageLoaderConfig
+from app.impl.loaders.pdf_loader import PDFLoader, PDFLoaderConfig
+from app.impl.loaders.text_loader import TextLoader, TextLoaderConfig
 
 
 class RAGDataLoader:

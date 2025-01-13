@@ -8,8 +8,8 @@ from pypdf.errors import PdfReadError, PageSizeNotDefinedError
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
 
-from src.impl.loaders.pdf_loader import PDFLoaderConfig, PDFLoader
-from src.interfaces.schemas import Document
+from app.impl.loaders.pdf_loader import PDFLoaderConfig, PDFLoader
+from app.interfaces.schemas import Document
 
 
 @pytest.fixture
@@ -242,7 +242,7 @@ class TestPDFLoader:
                 return self.real_reader.pages
 
         # Use the mock PdfReader with the correct import path
-        with patch('src.impl.loaders.pdf_loader.PdfReader', MockPdfReader):
+        with patch('app.impl.loaders.pdf_loader.PdfReader', MockPdfReader):
             documents = await pdf_loader.load(test_pdf)
 
             # Verify documents were loaded successfully

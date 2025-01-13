@@ -1,7 +1,9 @@
 import asyncio
+from typing import Dict, Any
+
 import pandas as pd
+
 from factory.component_factory import AsyncComponentFactory
-from typing import List, Dict, Any
 
 
 class BBCNewsRAG:
@@ -90,7 +92,7 @@ async def main():
         await rag.ingest_data(df)
 
         # Example query
-        question = "Who is Aarin Chiekrie? What does he do?"
+        question = "Do you have any news regarding GPU Production Company?"
         response = await rag.query(
             question,
             system_prompt="You are a helpful assistant that provides accurate information about the Bedford Debenhams plans based on the news articles."

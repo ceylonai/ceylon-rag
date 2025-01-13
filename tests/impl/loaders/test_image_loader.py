@@ -6,8 +6,8 @@ from PIL import Image, ExifTags
 import pytest
 from tenacity import RetryError
 
-from src.impl.loaders.image_loader import ImageLoaderConfig, ImageLoader
-from src.interfaces.schemas import Document
+from app.impl.loaders.image_loader import ImageLoaderConfig, ImageLoader
+from app.interfaces.schemas import Document
 
 
 @pytest.fixture

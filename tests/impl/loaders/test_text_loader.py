@@ -2,8 +2,8 @@ import io
 from pathlib import Path
 import pytest
 
-from src.impl.loaders.text_loader import TextLoaderConfig, TextLoader
-from src.interfaces.schemas import Document
+from app.impl.loaders.text_loader import TextLoaderConfig, TextLoader
+from app.interfaces.schemas import Document
 
 
 @pytest.fixture

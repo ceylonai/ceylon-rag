@@ -1,4 +1,4 @@
-# src/impl/loaders/image_loader.py
+# app/impl/loaders/image_loader.py
 from typing import List, Union
 from pathlib import Path
 from PIL import Image, ExifTags
@@ -6,8 +6,8 @@ from PIL import Image
 import pytesseract
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_not_exception_type
 
-from src.interfaces.document_loader import DocumentLoader, LoaderConfig
-from src.interfaces.schemas import Document
+from app.interfaces.document_loader import DocumentLoader, LoaderConfig
+from app.interfaces.schemas import Document
 
 
 class ImageLoaderConfig(LoaderConfig):
